@@ -1,0 +1,157 @@
+<html>
+<body>
+<h1>All timelines is creating by random. If you want another result, just reload page</h1>
+<div>To change TIMELINES_AMOUNT or MAX_FINISH_POINT, set this parameter to queryString:<< index.html?TIMELINES_AMOUNT=20000&MAX_FINISH_POINT=5 >></div>
+<div id="performance"></div>
+<table>
+
+</table>
+</body>
+<script type="text/javascript">
+    let TIMELINES_AMOUNT = 10;
+    let MAX_FINISH_POINT = 15;
+
+    /**
+     *
+     * @param timelines - array of timelines like {create:number, finish:number};
+     * @returns {Array} - array of intersections like {create:number, finish:number, amount:number}
+     */
+    function findIntersections(timelines) {
+        let hash = {};
+        //Get uniq array of create and finish points, sorting rom min to max
+        let intersectionPoints = timelines.reduce((memo, {create, finish}) => {
+            for (let point of [create, finish]) {
+                if (!hash[point]) {//It works faster then "!memo.includes(point)"
+                    hash[point] = true;
+                    memo.push(point);
+                }
+            }
+            return memo;
+        }, []).sort((current, next) => current - next);
+
+        //Sorting timelines by create point and total length
+        const sortedTimelines = timelines.sort((current, next) => {
+            return (current.create - next.create)
+                || (current.finish - current.create) - (next.finish - next.create)
+        });
+
+
+        //Find intersections for each pair of points
+        //removing timelines that are no longer needed
+        //and break the cycle, where its continuation does not make sense
+        const intersections = [];
+        while (intersectionPoints.length - 1) {
+            const createPoint = intersectionPoints.shift();
+            const finishPoint = intersectionPoints[0];
+            const intersectionLine = {create: createPoint, finish: finishPoint, amount: 0};
+
+            for (let i = 0; i < sortedTimelines.length; i++) {
+                const timeline = sortedTimelines[i];
+                //We should not process the following timelines if they will be created in the future
+                if (timeline.create >= finishPoint) break;
+                if (finishPoint <= timeline.finish && createPoint >= timeline.create) {
+                    intersectionLine.amount++;
+                    // Delete timelines that are no longer useful
+                    if (timeline.finish === finishPoint) {
+                        sortedTimelines.splice(i, 1);
+                        --i;
+                    }
+                }
+            }
+
+            intersectionLine.amount && intersections.push(intersectionLine);
+        }
+        return intersections;
+    }
+
+    document.addEventListener("DOMContentLoaded", function () {
+        const queryString = new URLSearchParams(window.location.search);
+        TIMELINES_AMOUNT = Number(queryString.get('TIMELINES_AMOUNT')) || TIMELINES_AMOUNT;
+        MAX_FINISH_POINT = Number(queryString.get('MAX_FINISH_POINT')) || MAX_FINISH_POINT;
+
+        const table = document.getElementsByTagName('table')[0];
+        const timelines = new Array(TIMELINES_AMOUNT)
+            .fill(null)
+            .map(getRandomTimelineTimeline);
+
+        drawAxisX(table);
+        drawTimelines(table, timelines);
+
+        const startTime = new Date().getTime();
+        const intersections = findIntersections(timelines);
+        document.getElementById('performance').innerText = `Finished by ${(new Date().getTime()) - startTime}ms`;
+
+        drawIntersections(table, intersections);
+
+    });
+
+
+    function getRandomTimelineTimeline() {
+        let point1, point2;
+        point1 = point2 = parseInt(String(Math.random() * MAX_FINISH_POINT + 1));
+        while (point2 === point1) point2 = parseInt(String(Math.random() * MAX_FINISH_POINT));
+        return {create: Math.min(point1, point2), finish: Math.max(point1, point2)}
+    }
+
+    function drawAxisX(table) {
+        const tr = document.createElement('tr');
+        for (let q = 0; q < MAX_FINISH_POINT; q++) {
+            const td = document.createElement('td');
+            td.style.width = window.innerWidth / MAX_FINISH_POINT + 'px';
+            td.innerText = String(q);
+            td.style.paddingLeft = "0px";
+            td.style.border = "1px solid #62605F";
+            tr.appendChild(td);
+        }
+        table.appendChild(tr);
+    }
+
+    function drawTimelines(table, timelines) {
+        for (let i = 0; i < TIMELINES_AMOUNT; i++) {
+            const tr = document.createElement('tr');
+            tr.id = `${i}`;
+            tr.style.height = window.innerHeight / (TIMELINES_AMOUNT * 1.5) + 'px';
+            for (let q = 0; q < MAX_FINISH_POINT; q++) {
+                const td = document.createElement('td');
+                td.id = `${i}-${q}`;
+                if (timelines[i].create <= q && timelines[i].finish > q) {
+                    td.style.backgroundColor = "red"
+                }
+                td.style.width = window.innerWidth / MAX_FINISH_POINT + 'px';
+                td.style.border = "1px dotted #62605F";
+                tr.appendChild(td);
+            }
+            table.appendChild(tr);
+        }
+    }
+
+    function drawIntersections(table, intersections) {
+        const BORDER_OPTIONS = "4px solid #0F0601";
+        const tr = document.createElement('tr');
+        const tdArray = new Array(MAX_FINISH_POINT)
+            .fill(null).map(_ => {
+                const td = document.createElement('td');
+                td.style.width = window.innerWidth / MAX_FINISH_POINT + 'px';
+                return td;
+            });
+
+        for (let {create, finish, amount} of intersections) {
+            console.log(tdArray);
+            tdArray[create].innerText = `Amount: ${amount}`;
+            tdArray[create].style.borderLeft = BORDER_OPTIONS;
+            tdArray[finish - 1].style.borderRight = BORDER_OPTIONS;
+
+            tdArray
+                .slice(create, finish)
+                .forEach(td => Object.assign(td.style, {
+                    borderBottom: BORDER_OPTIONS,
+                    backgroundColor: "#56CC90"
+                }));
+        }
+
+        tdArray.forEach(td => tr.appendChild(td));
+        table.appendChild(tr);
+    }
+
+</script>
+</html>
