@@ -18,7 +18,7 @@
      */
     function findIntersections(timelines) {
         let hash = {};
-        //Get uniq array of create and finish points, sorting rom min to max
+        //Get uniq array of create and finish points, sorting from min to max
         let intersectionPoints = timelines.reduce((memo, {create, finish}) => {
             for (let point of [create, finish]) {
                 if (!hash[point]) {//It works faster then "!memo.includes(point)"
